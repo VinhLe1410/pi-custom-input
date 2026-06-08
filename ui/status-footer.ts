@@ -4,6 +4,7 @@ import type {
   Theme,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { providerFooterPolicy } from "../core/providers";
 import type { RateWindow, UsageSnapshot } from "../core/types";
 import { collectExtensionStatusSegments } from "./extension-status";
 import { percentColor, RESET_ICON } from "./theme";
@@ -23,12 +24,18 @@ function renderCwd(ctx: ExtensionContext, theme: Theme): string {
 
 function usageWindows(snapshot: UsageSnapshot | null): RateWindow[] {
   if (!snapshot) return [];
-  if (snapshot.provider.toLowerCase() === "copilot") {
-    return snapshot.windows.filter(
-      (window) => window.label.toLowerCase() === "premium",
-    );
-  }
-  return snapshot.windows;
+
+  const includeWindowLabels = providerFooterPolicy(
+    snapshot.providerKey,
+  )?.includeWindowLabels;
+  if (!includeWindowLabels) return snapshot.windows;
+
+  const allowedLabels = new Set(
+    includeWindowLabels.map((label) => label.toLowerCase()),
+  );
+  return snapshot.windows.filter((window) =>
+    allowedLabels.has(window.label.toLowerCase()),
+  );
 }
 
 function formatQuotaWindowLabel(label: string): string {

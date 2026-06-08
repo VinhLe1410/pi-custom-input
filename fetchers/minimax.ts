@@ -1,5 +1,6 @@
 import { clampPercent, formatResetTime, getWindowLabel } from "../core/format";
 import { fetchWithTimeout } from "../core/network";
+import { providerDisplayName, type UsageProviderKey } from "../core/providers";
 import type { RateWindow, UsageSnapshot } from "../core/types";
 import type { AuthResolver } from "../seams/auth";
 import type { UsageFetcher } from "./index";
@@ -26,14 +27,17 @@ interface MinimaxUsageResponse {
   model_remains?: MinimaxModelRemain[];
 }
 
+type MinimaxProviderKey = Extract<UsageProviderKey, "minimax" | "minimax-cn">;
+
 export function createMinimaxFetcher(
   auth: AuthResolver,
-  provider: "minimax" | "minimax-cn",
+  provider: MinimaxProviderKey,
 ): UsageFetcher {
   return {
     async fetch(): Promise<UsageSnapshot> {
-      const token = auth.tokenFor(provider);
-      const providerLabel = provider === "minimax-cn" ? "MiniMax CN" : "MiniMax";
+      const providerKey = provider;
+      const token = auth.tokenFor(providerKey);
+      const providerLabel = providerDisplayName(providerKey);
       const endpoint =
         provider === "minimax-cn"
           ? "https://api.minimaxi.com/v1/api/openplatform/coding_plan/remains"
@@ -41,6 +45,7 @@ export function createMinimaxFetcher(
 
       if (!token) {
         return {
+          providerKey,
           provider: providerLabel,
           windows: [],
           error: "no-auth",
@@ -59,6 +64,7 @@ export function createMinimaxFetcher(
 
         if (!res.ok) {
           return {
+            providerKey,
             provider: providerLabel,
             windows: [],
             error: `HTTP ${res.status}`,
@@ -70,6 +76,7 @@ export function createMinimaxFetcher(
         const baseResp = data?.base_resp;
         if (baseResp?.status_code && baseResp.status_code !== 0) {
           return {
+            providerKey,
             provider: providerLabel,
             windows: [],
             error: baseResp.status_msg || `API ${baseResp.status_code}`,
@@ -92,6 +99,7 @@ export function createMinimaxFetcher(
 
         if (!textBucket) {
           return {
+            providerKey,
             provider: providerLabel,
             windows: [],
             error: "no-usage-data",
@@ -141,9 +149,10 @@ export function createMinimaxFetcher(
           });
         }
 
-        return { provider: providerLabel, windows, fetchedAt: Date.now() };
+        return { providerKey, provider: providerLabel, windows, fetchedAt: Date.now() };
       } catch (e: unknown) {
         return {
+          providerKey,
           provider: providerLabel,
           windows: [],
           error: String(e),

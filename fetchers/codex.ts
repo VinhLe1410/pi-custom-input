@@ -1,5 +1,6 @@
 import { clampPercent, formatResetTime, getWindowLabel } from "../core/format";
 import { fetchWithTimeout } from "../core/network";
+import { providerDisplayName, type UsageProviderKey } from "../core/providers";
 import type { RateWindow, UsageSnapshot } from "../core/types";
 import type { AuthResolver } from "../seams/auth";
 import type { UsageFetcher } from "./index";
@@ -20,18 +21,20 @@ interface CodexUsageResponse {
 export function createCodexFetcher(auth: AuthResolver): UsageFetcher {
   return {
     async fetch(): Promise<UsageSnapshot> {
-      const token = auth.tokenFor("codex");
+      const providerKey: UsageProviderKey = "codex";
+      const providerLabel = providerDisplayName(providerKey);
+      const token = auth.tokenFor(providerKey);
       if (!token) {
         return {
-          provider: "Codex",
+          providerKey,
+          provider: providerLabel,
           windows: [],
           error: "no-auth",
           fetchedAt: Date.now(),
         };
       }
 
-      const providerLabel = "Codex";
-      const accountId = auth.accountIdFor?.("codex");
+      const accountId = auth.accountIdFor?.(providerKey);
 
       try {
         const headers: Record<string, string> = {
@@ -51,6 +54,7 @@ export function createCodexFetcher(auth: AuthResolver): UsageFetcher {
 
         if (!res.ok) {
           return {
+            providerKey,
             provider: providerLabel,
             windows: [],
             error: `HTTP ${res.status}`,
@@ -95,9 +99,10 @@ export function createCodexFetcher(auth: AuthResolver): UsageFetcher {
           });
         }
 
-        return { provider: providerLabel, windows, fetchedAt: Date.now() };
+        return { providerKey, provider: providerLabel, windows, fetchedAt: Date.now() };
       } catch (e: unknown) {
         return {
+          providerKey,
           provider: providerLabel,
           windows: [],
           error: String(e),

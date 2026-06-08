@@ -1,5 +1,6 @@
 import { clampPercent } from "../core/format";
 import { fetchWithTimeout } from "../core/network";
+import { providerDisplayName, type UsageProviderKey } from "../core/providers";
 import type { RateWindow, UsageSnapshot } from "../core/types";
 import type { AuthResolver } from "../seams/auth";
 import type { UsageFetcher } from "./index";
@@ -16,10 +17,13 @@ interface GeminiUsageResponse {
 export function createGeminiFetcher(auth: AuthResolver): UsageFetcher {
   return {
     async fetch(): Promise<UsageSnapshot> {
-      const token = auth.tokenFor("gemini");
+      const providerKey: UsageProviderKey = "gemini";
+      const providerLabel = providerDisplayName(providerKey);
+      const token = auth.tokenFor(providerKey);
       if (!token) {
         return {
-          provider: "Gemini",
+          providerKey,
+          provider: providerLabel,
           windows: [],
           error: "no-auth",
           fetchedAt: Date.now(),
@@ -41,7 +45,8 @@ export function createGeminiFetcher(auth: AuthResolver): UsageFetcher {
 
         if (!res.ok) {
           return {
-            provider: "Gemini",
+            providerKey,
+            provider: providerLabel,
             windows: [],
             error: `HTTP ${res.status}`,
             fetchedAt: Date.now(),
@@ -89,10 +94,11 @@ export function createGeminiFetcher(auth: AuthResolver): UsageFetcher {
           });
         }
 
-        return { provider: "Gemini", windows, fetchedAt: Date.now() };
+        return { providerKey, provider: providerLabel, windows, fetchedAt: Date.now() };
       } catch (e: unknown) {
         return {
-          provider: "Gemini",
+          providerKey,
+          provider: providerLabel,
           windows: [],
           error: String(e),
           fetchedAt: Date.now(),

@@ -1,3 +1,5 @@
+import type { ProviderAuthKey, UsageProviderKey } from "./providers";
+
 export interface RateWindow {
   label: string;
   usedPercent: number;
@@ -5,6 +7,7 @@ export interface RateWindow {
 }
 
 export interface UsageSnapshot {
+  providerKey: UsageProviderKey;
   provider: string;
   windows: RateWindow[];
   error?: string;
@@ -18,13 +21,5 @@ export interface AuthEntry {
   accountId?: string;
 }
 
-export interface AuthJson {
-  [key: string]: string | AuthEntry | undefined;
-  anthropic?: AuthEntry;
-  "github-copilot"?: AuthEntry;
-  "openai-codex"?: AuthEntry;
-  "google-gemini-cli"?: AuthEntry;
-  minimax?: AuthEntry;
-  "minimax-cn"?: AuthEntry;
-  "kimi-coding"?: AuthEntry;
-}
+export type AuthJson = Partial<Record<ProviderAuthKey, AuthEntry>> &
+  Record<string, string | AuthEntry | undefined>;

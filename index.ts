@@ -7,9 +7,10 @@ import type { KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 import {
   PROJECT_REFRESH_INTERVAL_MS,
-  PROVIDER_MAP,
   USAGE_REFRESH_INTERVAL,
 } from "./core/constants";
+import { usageProviderForPiProvider } from "./core/providers";
+import type { UsageProviderKey } from "./core/providers";
 import { createFetcherRegistry } from "./fetchers";
 import { createAuthResolver } from "./seams/auth";
 import { createGitState } from "./seams/git";
@@ -26,8 +27,8 @@ const BORDER_CHASE_FRAME_COUNT = Math.max(
   Math.round(BORDER_CHASE_CYCLE_MS / BORDER_CHASE_INTERVAL_MS),
 );
 
-function detectProvider(modelProvider: string | undefined): string | null {
-  return modelProvider ? PROVIDER_MAP[modelProvider] || null : null;
+function detectProvider(modelProvider: string | undefined): UsageProviderKey | null {
+  return usageProviderForPiProvider(modelProvider);
 }
 
 export default function (pi: ExtensionAPI) {

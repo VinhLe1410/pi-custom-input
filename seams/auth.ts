@@ -2,6 +2,14 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+  providerAuthKey,
+  providerEnvVar,
+  providerUsesAccountId,
+  type AccountIdProviderKey,
+  type ProviderAuthKey,
+  type UsageProviderKey,
+} from "../core/providers";
 import type { AuthJson } from "../core/types";
 
 interface CodexCredentials {
@@ -28,8 +36,8 @@ interface GeminiOAuthFile {
 }
 
 export interface AuthResolver {
-  tokenFor(providerKey: string): string | undefined;
-  accountIdFor?(providerKey: string): string | undefined;
+  tokenFor(providerKey: UsageProviderKey): string | undefined;
+  accountIdFor?(providerKey: UsageProviderKey): string | undefined;
 }
 
 function loadAuthJson(): AuthJson {
@@ -67,7 +75,7 @@ function resolveAuthValue(value: unknown): string | undefined {
   return trimmed;
 }
 
-function getApiKey(providerKey: string, envVar: string): string | undefined {
+function getApiKey(providerKey: ProviderAuthKey, envVar: string): string | undefined {
   if (process.env[envVar]) return process.env[envVar];
 
   const auth = loadAuthJson();
@@ -83,7 +91,8 @@ function getApiKey(providerKey: string, envVar: string): string | undefined {
 
 function getClaudeToken(): string | undefined {
   const auth = loadAuthJson();
-  if (auth.anthropic?.access) return auth.anthropic.access;
+  const entry = auth[providerAuthKey("claude")];
+  if (entry?.access) return entry.access;
 
   try {
     const keychainData = execSync(
@@ -103,15 +112,16 @@ function getClaudeToken(): string | undefined {
 
 function getCopilotToken(): string | undefined {
   const auth = loadAuthJson();
-  return auth["github-copilot"]?.refresh;
+  return auth[providerAuthKey("copilot")]?.refresh;
 }
 
 function getCodexCredentials(): CodexCredentials | undefined {
   const auth = loadAuthJson();
-  if (auth["openai-codex"]?.access) {
+  const entry = auth[providerAuthKey("codex")];
+  if (entry?.access) {
     return {
-      token: auth["openai-codex"].access,
-      accountId: auth["openai-codex"]?.accountId,
+      token: entry.access,
+      accountId: entry.accountId,
     };
   }
 
@@ -142,8 +152,9 @@ function getCodexCredentials(): CodexCredentials | undefined {
 
 function getGeminiToken(): string | undefined {
   const auth = loadAuthJson();
-  if (auth["google-gemini-cli"]?.access) {
-    return auth["google-gemini-cli"].access;
+  const entry = auth[providerAuthKey("gemini")];
+  if (entry?.access) {
+    return entry.access;
   }
 
   // Fallback: ~/.gemini/oauth_creds.json
@@ -160,43 +171,46 @@ function getGeminiToken(): string | undefined {
   return undefined;
 }
 
-function getMinimaxToken(
-  provider: "minimax" | "minimax-cn",
-): string | undefined {
-  return provider === "minimax"
-    ? getApiKey("minimax", "MINIMAX_API_KEY")
-    : getApiKey("minimax-cn", "MINIMAX_CN_API_KEY");
+type MinimaxProviderKey = Extract<UsageProviderKey, "minimax" | "minimax-cn">;
+
+type TokenResolver = () => string | undefined;
+
+type AccountIdResolver = () => string | undefined;
+
+function getMinimaxToken(provider: MinimaxProviderKey): string | undefined {
+  const envVar = providerEnvVar(provider);
+  return envVar ? getApiKey(providerAuthKey(provider), envVar) : undefined;
 }
 
 function getKimiToken(): string | undefined {
-  return getApiKey("kimi-coding", "KIMI_API_KEY");
+  const envVar = providerEnvVar("kimi-coding");
+  return envVar
+    ? getApiKey(providerAuthKey("kimi-coding"), envVar)
+    : undefined;
 }
+
+const TOKEN_RESOLVERS: Record<UsageProviderKey, TokenResolver> = {
+  claude: getClaudeToken,
+  copilot: getCopilotToken,
+  codex: () => getCodexCredentials()?.token,
+  gemini: getGeminiToken,
+  minimax: () => getMinimaxToken("minimax"),
+  "minimax-cn": () => getMinimaxToken("minimax-cn"),
+  "kimi-coding": getKimiToken,
+};
+
+const ACCOUNT_ID_RESOLVERS: Record<AccountIdProviderKey, AccountIdResolver> = {
+  codex: () => getCodexCredentials()?.accountId,
+};
 
 export function createAuthResolver(): AuthResolver {
   return {
-    tokenFor(providerKey: string): string | undefined {
-      switch (providerKey) {
-        case "claude":
-          return getClaudeToken();
-        case "copilot":
-          return getCopilotToken();
-        case "codex":
-          return getCodexCredentials()?.token;
-        case "gemini":
-          return getGeminiToken();
-        case "minimax":
-          return getMinimaxToken("minimax");
-        case "minimax-cn":
-          return getMinimaxToken("minimax-cn");
-        case "kimi-coding":
-          return getKimiToken();
-        default:
-          return undefined;
-      }
+    tokenFor(providerKey: UsageProviderKey): string | undefined {
+      return TOKEN_RESOLVERS[providerKey]();
     },
-    accountIdFor(providerKey: string): string | undefined {
-      if (providerKey !== "codex") return undefined;
-      return getCodexCredentials()?.accountId;
+    accountIdFor(providerKey: UsageProviderKey): string | undefined {
+      if (!providerUsesAccountId(providerKey)) return undefined;
+      return ACCOUNT_ID_RESOLVERS[providerKey]();
     },
   };
 }

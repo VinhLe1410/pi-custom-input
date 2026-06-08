@@ -1,3 +1,4 @@
+import type { UsageProviderKey } from "../core/providers";
 import type { UsageSnapshot } from "../core/types";
 import type { AuthResolver } from "../seams/auth";
 import { createClaudeFetcher } from "./claude";
@@ -11,14 +12,25 @@ export interface UsageFetcher {
   fetch(): Promise<UsageSnapshot>;
 }
 
-export function createFetcherRegistry(auth: AuthResolver): Map<string, UsageFetcher> {
-  return new Map<string, UsageFetcher>([
-    ["claude", createClaudeFetcher(auth)],
-    ["codex", createCodexFetcher(auth)],
-    ["copilot", createCopilotFetcher(auth)],
-    ["gemini", createGeminiFetcher(auth)],
-    ["minimax", createMinimaxFetcher(auth, "minimax")],
-    ["minimax-cn", createMinimaxFetcher(auth, "minimax-cn")],
-    ["kimi-coding", createKimiFetcher(auth)],
-  ]);
+type FetcherFactory = (auth: AuthResolver) => UsageFetcher;
+
+const FETCHER_FACTORIES: Record<UsageProviderKey, FetcherFactory> = {
+  claude: createClaudeFetcher,
+  codex: createCodexFetcher,
+  copilot: createCopilotFetcher,
+  gemini: createGeminiFetcher,
+  minimax: (auth) => createMinimaxFetcher(auth, "minimax"),
+  "minimax-cn": (auth) => createMinimaxFetcher(auth, "minimax-cn"),
+  "kimi-coding": createKimiFetcher,
+};
+
+export function createFetcherRegistry(
+  auth: AuthResolver,
+): Map<UsageProviderKey, UsageFetcher> {
+  return new Map(
+    Object.entries(FETCHER_FACTORIES).map(([providerKey, createFetcher]) => [
+      providerKey as UsageProviderKey,
+      createFetcher(auth),
+    ]),
+  );
 }

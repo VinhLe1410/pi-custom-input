@@ -1,24 +1,25 @@
-import type { UsageFetcher } from "../fetchers";
+import type { UsageProviderKey } from "../core/providers";
 import type { UsageSnapshot } from "../core/types";
+import type { UsageFetcher } from "../fetchers";
 
 interface UsageStateOptions {
-  registry: Map<string, UsageFetcher>;
+  registry: Map<UsageProviderKey, UsageFetcher>;
   intervalMs: number;
 }
 
 export interface UsageState {
-  start(provider: string): void;
+  start(provider: UsageProviderKey): void;
   stop(): void;
   current(): UsageSnapshot | null;
   onChange(callback: () => void): () => void;
 }
 
 export function createUsageState(options: UsageStateOptions): UsageState {
-  const usageCache = new Map<string, UsageSnapshot>();
+  const usageCache = new Map<UsageProviderKey, UsageSnapshot>();
   const listeners = new Set<() => void>();
 
   let latestUsage: UsageSnapshot | null = null;
-  let activeProvider: string | null = null;
+  let activeProvider: UsageProviderKey | null = null;
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
   let requestVersion = 0;
 
@@ -34,7 +35,7 @@ export function createUsageState(options: UsageStateOptions): UsageState {
     notifyChange();
   }
 
-  function fetchAndCache(provider: string): void {
+  function fetchAndCache(provider: UsageProviderKey): void {
     const fetcher = options.registry.get(provider);
     if (!fetcher) return;
 
@@ -68,7 +69,7 @@ export function createUsageState(options: UsageStateOptions): UsageState {
   }
 
   return {
-    start(provider: string): void {
+    start(provider: UsageProviderKey): void {
       activeProvider = provider;
 
       const cached = usageCache.get(provider);

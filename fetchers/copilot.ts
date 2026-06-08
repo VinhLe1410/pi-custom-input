@@ -1,5 +1,6 @@
 import { clampPercent, formatResetTime } from "../core/format";
 import { fetchWithTimeout } from "../core/network";
+import { providerDisplayName, type UsageProviderKey } from "../core/providers";
 import type { RateWindow, UsageSnapshot } from "../core/types";
 import type { AuthResolver } from "../seams/auth";
 import type { UsageFetcher } from "./index";
@@ -20,10 +21,13 @@ interface CopilotUsageResponse {
 export function createCopilotFetcher(auth: AuthResolver): UsageFetcher {
   return {
     async fetch(): Promise<UsageSnapshot> {
-      const token = auth.tokenFor("copilot");
+      const providerKey: UsageProviderKey = "copilot";
+      const providerLabel = providerDisplayName(providerKey);
+      const token = auth.tokenFor(providerKey);
       if (!token) {
         return {
-          provider: "Copilot",
+          providerKey,
+          provider: providerLabel,
           windows: [],
           error: "no-auth",
           fetchedAt: Date.now(),
@@ -43,7 +47,8 @@ export function createCopilotFetcher(auth: AuthResolver): UsageFetcher {
 
         if (!res.ok) {
           return {
-            provider: "Copilot",
+            providerKey,
+            provider: providerLabel,
             windows: [],
             error: `HTTP ${res.status}`,
             fetchedAt: Date.now(),
@@ -75,10 +80,11 @@ export function createCopilotFetcher(auth: AuthResolver): UsageFetcher {
           });
         }
 
-        return { provider: "Copilot", windows, fetchedAt: Date.now() };
+        return { providerKey, provider: providerLabel, windows, fetchedAt: Date.now() };
       } catch (e: unknown) {
         return {
-          provider: "Copilot",
+          providerKey,
+          provider: providerLabel,
           windows: [],
           error: String(e),
           fetchedAt: Date.now(),
