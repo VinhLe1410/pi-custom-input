@@ -1,0 +1,157 @@
+import type {
+  ExtensionContext,
+  ReadonlyFooterDataProvider,
+  Theme,
+} from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { RateWindow, UsageSnapshot } from "../core/types";
+import { collectExtensionStatusSegments } from "./extension-status";
+import { percentColor, RESET_ICON } from "./theme";
+
+const FOOTER_SEPARATOR = " | ";
+const FOOTER_SIDE_PADDING = 1;
+
+function formatCwdLabel(cwd: string): string {
+  const normalized = cwd.replace(/\\/g, "/").replace(/\/+$/, "");
+  const parts = normalized.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? cwd;
+}
+
+function renderCwd(ctx: ExtensionContext, theme: Theme): string {
+  return theme.fg("accent", `󰝰 ${formatCwdLabel(ctx.cwd)}`);
+}
+
+function usageWindows(snapshot: UsageSnapshot | null): RateWindow[] {
+  if (!snapshot) return [];
+  if (snapshot.provider.toLowerCase() === "copilot") {
+    return snapshot.windows.filter(
+      (window) => window.label.toLowerCase() === "premium",
+    );
+  }
+  return snapshot.windows;
+}
+
+function formatQuotaWindowLabel(label: string): string {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === "week" || normalized === "weekly" || normalized === "7d") return "7D";
+  if (normalized === "5h") return "5H";
+  if (normalized === "premium") return "PREM";
+  return label.trim().toUpperCase();
+}
+
+function renderQuotaBadge(window: RateWindow, theme: Theme): string {
+  const rounded = Math.max(0, Math.min(999, Math.round(window.usedPercent)));
+  const label = theme.bg(
+    "toolPendingBg",
+    theme.bold(theme.fg("muted", ` ${formatQuotaWindowLabel(window.label)} `)),
+  );
+  const percent = theme.inverse(theme.bold(theme.fg(percentColor(rounded), ` ${rounded}% `)));
+  const reset = window.resetsIn
+    ? theme.bg("toolPendingBg", theme.fg("text", ` ${RESET_ICON} ${window.resetsIn} `))
+    : "";
+
+  return `${label}${percent}${reset}`;
+}
+
+function renderQuotaBadges(snapshot: UsageSnapshot | null, theme: Theme): string {
+  return usageWindows(snapshot)
+    .map((window) => renderQuotaBadge(window, theme))
+    .join(theme.fg("borderMuted", " "));
+}
+
+function renderStatusChip(text: string, theme: Theme): string {
+  return [theme.fg("success", ""), " ", theme.fg("dim", text)].join("");
+}
+
+function joinStatusTexts(statusTexts: string[], separator: string): string {
+  return statusTexts.filter(Boolean).join(separator);
+}
+
+function fitStatusTexts(statusTexts: string[], maxWidth: number, separator: string): string {
+  if (maxWidth <= 0) return "";
+
+  const fitted: string[] = [];
+  for (const text of statusTexts) {
+    const candidate = joinStatusTexts([...fitted, text], separator);
+    if (visibleWidth(candidate) <= maxWidth) {
+      fitted.push(text);
+      continue;
+    }
+
+    if (fitted.length === 0) {
+      return maxWidth > 1 ? truncateToWidth(text, maxWidth, "…") : "";
+    }
+    break;
+  }
+
+  return joinStatusTexts(fitted, separator);
+}
+
+function prependStatusArea(base: string, statusText: string, separator: string): string {
+  if (!base) return statusText;
+  if (!statusText) return base;
+  return `${statusText}${separator}${base}`;
+}
+
+function composeBuiltInFooterContent(left: string, right: string, width: number): string {
+  const leftWidth = visibleWidth(left);
+  const rightWidth = visibleWidth(right);
+  return leftWidth >= width
+    ? truncateToWidth(left, width, "")
+    : leftWidth + 1 + rightWidth <= width
+      ? `${left}${" ".repeat(width - leftWidth - rightWidth)}${right}`
+      : truncateToWidth(left, width, "");
+}
+
+function composeFooter(
+  left: string,
+  right: string,
+  extensionRight: string[],
+  separator: string,
+  width: number,
+): string {
+  const leftWidth = visibleWidth(left);
+  const rightWidth = visibleWidth(right);
+  const minimumGap = left && right ? 1 : 0;
+
+  if (leftWidth + minimumGap + rightWidth > width) {
+    return composeBuiltInFooterContent(left, right, width);
+  }
+
+  const available = Math.max(0, width - leftWidth - rightWidth - minimumGap);
+  const connectorWidth = right && extensionRight.length > 0 ? visibleWidth(separator) : 0;
+  const rightStatus = fitStatusTexts(
+    extensionRight,
+    Math.max(0, available - connectorWidth),
+    separator,
+  );
+  const finalRight = prependStatusArea(right, rightStatus, separator);
+  const gapWidth = Math.max(0, width - visibleWidth(left) - visibleWidth(finalRight));
+  return `${left}${" ".repeat(gapWidth)}${finalRight}`;
+}
+
+export function renderStatusFooter(
+  ctx: ExtensionContext,
+  footerData: ReadonlyFooterDataProvider,
+  usageSnapshot: UsageSnapshot | null,
+  width: number,
+  theme: Theme,
+): string[] {
+  if (width <= 0) return [""];
+
+  const sidePadding = width >= FOOTER_SIDE_PADDING * 2 ? FOOTER_SIDE_PADDING : 0;
+  const innerWidth = Math.max(0, width - sidePadding * 2);
+  const separator = theme.fg("dim", FOOTER_SEPARATOR);
+  const left = renderCwd(ctx, theme);
+  const right = renderQuotaBadges(usageSnapshot, theme);
+  const extensionStatuses = collectExtensionStatusSegments(footerData.getExtensionStatuses());
+  const renderExtensionStatus = (text: string) => renderStatusChip(text, theme);
+  const content = composeFooter(
+    left,
+    right,
+    extensionStatuses.map((segment) => renderExtensionStatus(segment.text)),
+    separator,
+    innerWidth,
+  );
+  return [`${" ".repeat(sidePadding)}${truncateToWidth(content, innerWidth, "")}${" ".repeat(sidePadding)}`];
+}
