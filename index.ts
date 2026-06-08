@@ -6,10 +6,8 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
-import {
-  PROJECT_REFRESH_INTERVAL_MS,
-  USAGE_QUOTA_REFRESH_INTERVAL_MS,
-} from "./core/runtime-config";
+import { PROJECT_REFRESH_INTERVAL_MS } from "./core/runtime-config";
+import { createFeatureHost } from "./features/host";
 import { createUsageQuotaFeature } from "./features/usage-quota";
 import { createGitState } from "./seams/git";
 import { createProjectRefreshController } from "./seams/project-refresh";
@@ -52,10 +50,9 @@ export default function (pi: ExtensionAPI) {
     requestFooterRender?.();
   }
 
-  const usageQuota = createUsageQuotaFeature({
-    intervalMs: USAGE_QUOTA_REFRESH_INTERVAL_MS,
-    onChange: requestUiRender,
-  });
+  const features = createFeatureHost([
+    createUsageQuotaFeature({ requestRender: requestUiRender }),
+  ]);
 
   function stopBorderChase(render = true): void {
     const wasRunning = borderChaseActive || borderChaseTimer !== undefined;
@@ -105,7 +102,7 @@ export default function (pi: ExtensionAPI) {
     ctx.ui.setWorkingIndicator();
     ctx.ui.setWorkingVisible(false);
     projectRefresh.start(ctx.cwd);
-    usageQuota.start(ctx);
+    features.sessionStart(ctx);
 
     ctx.ui.setEditorComponent((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
       activeTui = tui;
@@ -134,7 +131,7 @@ export default function (pi: ExtensionAPI) {
         invalidate() {},
         render(width: number): string[] {
           return renderStatusFooter(ctx, footerData, width, theme, {
-            rightSegments: usageQuota.renderSegments(theme),
+            rightSegments: features.footerRight(theme),
           });
         },
       };
@@ -144,7 +141,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_shutdown", (_event, ctx) => {
     stopBorderChase(false);
     projectRefresh.stop();
-    usageQuota.stop();
+    features.sessionShutdown(ctx);
     requestFooterRender = undefined;
     activeContext = undefined;
     activeTui = undefined;
@@ -179,8 +176,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("model_select", (_event, ctx) => {
-    if (ctx.mode === "tui") usageQuota.start(ctx);
-    else usageQuota.stop();
+    features.modelSelect(ctx);
     refreshEditorMeta(ctx);
     requestUiRender();
   });

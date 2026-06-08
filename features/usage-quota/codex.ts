@@ -1,5 +1,5 @@
 import { clampPercent, formatResetTime, getWindowLabel } from "../../core/format";
-import { fetchWithTimeout } from "../../core/network";
+import { fetchWithTimeout } from "./network";
 import { resolveCodexCredentials } from "./auth";
 import type { CodexQuotaWindow, QuotaState } from "./types";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";

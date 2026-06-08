@@ -1,7 +1,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
-import { ICONS, QUOTA_BADGE_LABELS } from "../../ui/design-tokens";
 import { percentColor } from "../../ui/theme";
+import { QUOTA_BADGE_LABELS, QUOTA_ICONS } from "./config";
 import type { CodexQuotaWindow, QuotaState } from "./types";
 
 function quotaLabel(label: string): string {
@@ -17,7 +17,7 @@ function renderQuotaBadge(window: CodexQuotaWindow, theme: Theme): string {
   );
   const percent = theme.inverse(theme.bold(theme.fg(percentColor(rounded), ` ${rounded}% `)));
   const reset = window.resetsIn
-    ? theme.bg("toolPendingBg", theme.fg("text", ` ${ICONS.reset} ${window.resetsIn} `))
+    ? theme.bg("toolPendingBg", theme.fg("text", ` ${QUOTA_ICONS.reset} ${window.resetsIn} `))
     : "";
 
   return `${label}${percent}${reset}`;

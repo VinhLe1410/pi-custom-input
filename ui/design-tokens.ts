@@ -34,14 +34,6 @@ export const ICONS = {
   cwd: "󰝰",
   extensionStatus: "",
   gitBranch: "",
-  reset: "",
-} as const;
-
-export const QUOTA_BADGE_LABELS: Record<string, string> = {
-  week: "7D",
-  weekly: "7D",
-  "7d": "7D",
-  "5h": "5H",
 } as const;
 
 export const USAGE_PERCENT_THRESHOLDS = {

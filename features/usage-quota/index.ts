@@ -1,28 +1,31 @@
 import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
+import type { ExtensionFeature, FeatureServices } from "../types";
+import { USAGE_QUOTA_REFRESH_INTERVAL_MS } from "./config";
 import { renderQuotaSegments } from "./render";
-import { createUsageQuotaState, type UsageQuotaState } from "./state";
+import { createUsageQuotaState } from "./state";
 
-export interface UsageQuotaFeature extends UsageQuotaState {
-  renderSegments(theme: Theme): string[];
-}
+export function createUsageQuotaFeature(services: FeatureServices): ExtensionFeature {
+  const state = createUsageQuotaState({
+    intervalMs: USAGE_QUOTA_REFRESH_INTERVAL_MS,
+    onChange: services.requestRender,
+  });
 
-export function createUsageQuotaFeature(options: {
-  intervalMs: number;
-  onChange: () => void;
-}): UsageQuotaFeature {
-  const state = createUsageQuotaState(options);
+  function syncWithContext(ctx: ExtensionContext): void {
+    if (ctx.mode === "tui") state.start(ctx);
+    else state.stop();
+  }
 
   return {
-    start(ctx: ExtensionContext): void {
-      state.start(ctx);
+    sessionStart(ctx: ExtensionContext): void {
+      syncWithContext(ctx);
     },
-    stop(): void {
+    sessionShutdown(): void {
       state.stop();
     },
-    current() {
-      return state.current();
+    modelSelect(ctx: ExtensionContext): void {
+      syncWithContext(ctx);
     },
-    renderSegments(theme: Theme): string[] {
+    footerRight(theme: Theme): readonly string[] {
       return renderQuotaSegments(state.current(), theme);
     },
   };
