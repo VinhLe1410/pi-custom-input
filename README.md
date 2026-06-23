@@ -4,13 +4,21 @@
 
 https://github.com/user-attachments/assets/26a42a07-b4f0-4419-ac40-c9c7be68c181
 
-## Feature list:
+## Feature list
 
-1. **BIG FEATURE:** OpenCode-alike UI (props to [`pi-zentui`](https://github.com/lmilojevicc/pi-zentui) for the initial inspiration, and, of course, [`OpenCode`](https://github.com/anomalyco/opencode)), without overflowing into user's clipboard (by using ANSI-colored spaces instead of actual ASCII character)
-2. **BIG FEATURE:** Animated loading state with "potentially insulting" whimsical user messages while the agent is working
-3. **LESS BIG FEATURE:** Proper badges for displaying model, thinking effort, and usage quota (props to [this Pi Coding Agent post](https://www.reddit.com/r/PiCodingAgent/comments/1tyys3b/this_ones_mine/), made by u/monoceros-rex)
-4. **LESS BIG FEATURE:** Codex usage quota, easily removable by deleting [`features/usage-quota/`](features/usage-quota/) and remove import in [`index.ts`](index.ts)
-5. **LESS BIG FEATURE:** `/input-style` toggles between the default UI and a minimalist Amp-inspired input UI. The choice is saved to `~/.pi/agent/pi-input-3000.json`.
-6. **EXPERIMENTAL:** Sticky terminal split keeps the input/editor/footer pinned while chat history scrolls with mouse wheel and Page Up/Down.
+1. **Default input:** OpenCode-alike chrome with model/thinking/context/git badges, animated border chase, whimsical working messages, and extension/package status display.
+2. **Amp-inspired input:** Minimal, zen input UI with cost, thinking, context %, and cwd labels.
+3. **Sticky input:** Terminal split keeps the input/editor/footer pinned while chat history scrolls with mouse wheel and Page Up/Down.
+4. **Settings:** `/input-style` toggles between styles with accurate previews. The choice is saved to `~/.pi/agent/pi-input-3000.json`.
+
+## Code layout
+
+The root `index.ts` is a tiny compatibility shim. The extension implementation lives in [`src/`](src/):
+
+- [`src/default/`](src/default/) contains default-input-only code.
+- [`src/amp/`](src/amp/) contains Amp-inspired-input-only code.
+- [`src/shared/`](src/shared/) contains code shared by both input styles.
+- [`src/settings/`](src/settings/) contains the style picker and preview frame.
+- [`src/sticky/`](src/sticky/) contains the global sticky terminal split.
 
 **How to use:** Clone to `~/.pi/agent/extensions/`, `pnpm install` (moreso for development than for actually using it), then enjoy.

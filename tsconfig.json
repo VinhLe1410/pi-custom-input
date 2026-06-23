@@ -14,10 +14,6 @@
   },
   "include": [
     "index.ts",
-    "core/**/*.ts",
-    "features/**/*.ts",
-    "seams/**/*.ts",
-    "ui/**/*.ts",
-    "whimsical/**/*.ts"
+    "src/**/*.ts"
   ]
 }
