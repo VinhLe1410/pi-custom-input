@@ -1,7 +1,7 @@
 import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { type SelectItem, SelectList } from "@earendil-works/pi-tui";
 import { isInputStyle, type InputStyle } from "../core/input-style-config";
-import { renderInputStylePreview } from "./input-style-preview";
+import { findInputStyleAdapter, inputStyleAdapters } from "./input-styles";
 import { renderSettingsFocusFrame } from "./settings-frame";
 
 function selectListTheme(theme: Theme) {
@@ -14,23 +14,12 @@ function selectListTheme(theme: Theme) {
   };
 }
 
-function itemLabel(label: string, style: InputStyle, currentStyle: InputStyle): string {
-  return style === currentStyle ? `${label} (current)` : label;
-}
-
 function styleItems(currentStyle: InputStyle): SelectItem[] {
-  return [
-    {
-      value: "default",
-      label: itemLabel("Default", "default", currentStyle),
-      description: "Current pi-input-3000 chrome with badges, footer, and border chase",
-    },
-    {
-      value: "amp",
-      label: itemLabel("Amp-inspired", "amp", currentStyle),
-      description: "Minimal chrome: cost, thinking, context %, and cwd only",
-    },
-  ];
+  return inputStyleAdapters.map((adapter) => ({
+    value: adapter.id,
+    label: adapter.id === currentStyle ? `${adapter.label} (current)` : adapter.label,
+    description: adapter.description,
+  }));
 }
 
 export async function showInputStyleMenu(
@@ -41,12 +30,13 @@ export async function showInputStyleMenu(
     let previewStyle = currentStyle;
     const selectList = new SelectList(
       styleItems(currentStyle),
-      2,
+      inputStyleAdapters.length,
       selectListTheme(theme),
       { minPrimaryColumnWidth: 18, maxPrimaryColumnWidth: 28 },
     );
 
-    selectList.setSelectedIndex(currentStyle === "amp" ? 1 : 0);
+    const initialIndex = inputStyleAdapters.findIndex((a) => a.id === currentStyle);
+    selectList.setSelectedIndex(initialIndex >= 0 ? initialIndex : 0);
     selectList.onSelectionChange = (item) => {
       if (isInputStyle(item.value)) previewStyle = item.value;
       tui.requestRender();
@@ -58,12 +48,16 @@ export async function showInputStyleMenu(
 
     return {
       render(width: number): string[] {
+        const adapter = findInputStyleAdapter(previewStyle);
+        const preview = adapter
+          ? adapter.renderPreview(ctx, width, theme)
+          : [];
         const lines = [
           theme.fg("accent", theme.bold("Input Style")),
           "",
           ...selectList.render(width),
           "",
-          ...renderInputStylePreview(ctx, previewStyle, width, theme),
+          ...preview,
           "",
           theme.fg("dim", "↑↓ preview • enter select • esc cancel"),
         ];

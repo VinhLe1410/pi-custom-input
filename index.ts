@@ -1,169 +1,22 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-  ReadonlyFooterDataProvider,
-  Theme,
-} from "@earendil-works/pi-coding-agent";
-import type { KeybindingsManager } from "@earendil-works/pi-coding-agent";
-import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
   loadInputStyleConfig,
   saveInputStyleConfig,
   type InputStyle,
 } from "./core/input-style-config";
-import { PROJECT_REFRESH_INTERVAL_MS } from "./core/runtime-config";
-import { createFeatureHost } from "./features/host";
-import { createUsageQuotaFeature } from "./features/usage-quota";
-import { createGitState } from "./seams/git";
-import { createProjectRefreshController } from "./seams/project-refresh";
-import { AmpInputEditor } from "./ui/amp/editor";
-import { BORDER_CHASE, BORDER_CHASE_FRAME_COUNT } from "./ui/design-tokens";
-import { PolishedInputEditor } from "./ui/editor";
-import { EmptyComponent } from "./ui/empty-component";
-import { buildEditorMeta, getThinkingLevel } from "./ui/editor-meta";
+import { InputStyleRuntimeController } from "./ui/input-style-runtime";
+import { findInputStyleAdapter } from "./ui/input-styles";
 import { showInputStyleMenu } from "./ui/input-style-menu";
-import { renderStatusFooter } from "./ui/status-footer";
 import { pickWorkingMessage } from "./whimsical/messages";
 
 export default function (pi: ExtensionAPI) {
-  const git = createGitState();
-
-  let activeTui: TUI | undefined;
-  let requestFooterRender: (() => void) | undefined;
-  let hasPromptUi = false;
-  let borderChaseTimer: ReturnType<typeof setInterval> | undefined;
-  let borderChaseActive = false;
-  let borderChaseFrameIndex = 0;
-  let workingMessage: string | undefined;
-  let cachedThinkingLevel: string | undefined;
+  const runtime = new InputStyleRuntimeController();
   let activeStyle: InputStyle = loadInputStyleConfig().style;
-
-  function refreshThinkingLevel(ctx: ExtensionContext): void {
-    cachedThinkingLevel = getThinkingLevel(ctx);
-  }
-
-  function requestUiRender(): void {
-    if (activeTui) {
-      activeTui.requestRender();
-      return;
-    }
-    requestFooterRender?.();
-  }
-
-  const features = createFeatureHost([
-    createUsageQuotaFeature({ requestRender: requestUiRender }),
-  ]);
-
-  function stopBorderChase(render = true): void {
-    const wasRunning = borderChaseActive || borderChaseTimer !== undefined;
-    if (borderChaseTimer) {
-      clearInterval(borderChaseTimer);
-      borderChaseTimer = undefined;
-    }
-    borderChaseActive = false;
-    borderChaseFrameIndex = 0;
-    if (render && wasRunning) requestUiRender();
-  }
-
-  function startBorderChase(): void {
-    if (!hasPromptUi || activeStyle !== "default") return;
-
-    stopBorderChase(false);
-    borderChaseActive = true;
-    borderChaseFrameIndex = 0;
-    borderChaseTimer = setInterval(() => {
-      borderChaseFrameIndex = (borderChaseFrameIndex + 1) % BORDER_CHASE_FRAME_COUNT;
-      requestUiRender();
-    }, BORDER_CHASE.intervalMs);
-    borderChaseTimer.unref?.();
-    requestUiRender();
-  }
-
-  const projectRefresh = createProjectRefreshController({
-    git,
-    intervalMs: PROJECT_REFRESH_INTERVAL_MS,
-    onChange: () => {
-      requestUiRender();
-    },
-  });
-
-  function applyDefaultStyle(ctx: ExtensionContext): void {
-    ctx.ui.setHeader(undefined);
-    ctx.ui.setWorkingMessage();
-    ctx.ui.setWorkingIndicator();
-    ctx.ui.setWorkingVisible(false);
-    projectRefresh.start(ctx.cwd);
-    features.sessionStart(ctx);
-
-    ctx.ui.setEditorComponent((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
-      activeTui = tui;
-
-      return new PolishedInputEditor(
-        tui,
-        theme,
-        keybindings,
-        () => ({
-          meta: buildEditorMeta(
-            ctx,
-            git.current(),
-            cachedThinkingLevel ?? getThinkingLevel(ctx),
-          ),
-          chaseFrameIndex: borderChaseActive ? borderChaseFrameIndex : undefined,
-          chaseFrameCount: BORDER_CHASE_FRAME_COUNT,
-          workingMessage,
-        }),
-        ctx.ui.theme,
-      );
-    });
-
-    ctx.ui.setFooter((tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => {
-      requestFooterRender = () => tui.requestRender();
-
-      return {
-        dispose() {
-          requestFooterRender = undefined;
-        },
-        invalidate() {},
-        render(width: number): string[] {
-          return renderStatusFooter(ctx, footerData, width, theme, {
-            rightSegments: features.footerRight(theme),
-          });
-        },
-      };
-    });
-  }
-
-  function applyAmpStyle(ctx: ExtensionContext): void {
-    stopBorderChase(false);
-    projectRefresh.stop();
-    features.sessionShutdown(ctx);
-    requestFooterRender = undefined;
-
-    ctx.ui.setHeader(() => new EmptyComponent());
-    ctx.ui.setWorkingMessage();
-    ctx.ui.setWorkingIndicator();
-    ctx.ui.setWorkingVisible(true);
-
-    ctx.ui.setEditorComponent((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
-      activeTui = tui;
-      return new AmpInputEditor(
-        tui,
-        theme,
-        keybindings,
-        ctx,
-        () => cachedThinkingLevel ?? getThinkingLevel(ctx),
-        ctx.ui.theme,
-      );
-    });
-
-    ctx.ui.setFooter(() => new EmptyComponent());
-  }
 
   function applyInputStyle(ctx: ExtensionContext, style: InputStyle): void {
     activeStyle = style;
-    if (style === "default") applyDefaultStyle(ctx);
-    else applyAmpStyle(ctx);
-    requestUiRender();
+    findInputStyleAdapter(style)?.apply(ctx, runtime);
+    runtime.requestRender();
   }
 
   pi.registerCommand("input-style", {
@@ -194,26 +47,22 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", (_event, ctx) => {
-    refreshThinkingLevel(ctx);
+    runtime.refreshThinkingLevel(ctx);
 
     if (ctx.mode !== "tui") {
-      hasPromptUi = false;
+      runtime.setPromptUiActive(false);
       return;
     }
 
-    hasPromptUi = true;
+    runtime.setPromptUiActive(true);
     applyInputStyle(ctx, loadInputStyleConfig().style);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
-    stopBorderChase(false);
-    projectRefresh.stop();
-    features.sessionShutdown(ctx);
-    requestFooterRender = undefined;
-    activeTui = undefined;
-    hasPromptUi = false;
-    workingMessage = undefined;
-    cachedThinkingLevel = undefined;
+    runtime.stopBorderChase(false);
+    runtime.projectRefresh.stop();
+    runtime.features.sessionShutdown(ctx);
+    runtime.shutdown();
 
     if (ctx.mode !== "tui") return;
     ctx.ui.setHeader(undefined);
@@ -224,47 +73,47 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("turn_start", () => {
-    workingMessage = pickWorkingMessage();
-    requestUiRender();
+    runtime.setWorkingMessage(pickWorkingMessage());
+    runtime.requestRender();
   });
 
   pi.on("agent_start", () => {
-    startBorderChase();
+    runtime.startBorderChase();
   });
 
   pi.on("agent_end", () => {
-    stopBorderChase();
+    runtime.stopBorderChase();
   });
 
   pi.on("turn_end", (_event, ctx) => {
-    workingMessage = undefined;
-    refreshThinkingLevel(ctx);
-    if (activeStyle === "default") projectRefresh.schedule();
-    requestUiRender();
+    runtime.setWorkingMessage(undefined);
+    runtime.refreshThinkingLevel(ctx);
+    findInputStyleAdapter(activeStyle)?.onTurnEnd?.(ctx, runtime);
+    runtime.requestRender();
   });
 
   pi.on("message_end", () => {
-    requestUiRender();
+    runtime.requestRender();
   });
 
   pi.on("session_tree", (_event, ctx) => {
-    refreshThinkingLevel(ctx);
-    requestUiRender();
+    runtime.refreshThinkingLevel(ctx);
+    runtime.requestRender();
   });
 
   pi.on("session_compact", (_event, ctx) => {
-    refreshThinkingLevel(ctx);
-    requestUiRender();
+    runtime.refreshThinkingLevel(ctx);
+    runtime.requestRender();
   });
 
   pi.on("model_select", (_event, ctx) => {
-    if (activeStyle === "default") features.modelSelect(ctx);
-    refreshThinkingLevel(ctx);
-    requestUiRender();
+    findInputStyleAdapter(activeStyle)?.onModelSelect?.(ctx, runtime);
+    runtime.refreshThinkingLevel(ctx);
+    runtime.requestRender();
   });
 
   pi.on("thinking_level_select", (_event, ctx) => {
-    refreshThinkingLevel(ctx);
-    requestUiRender();
+    runtime.refreshThinkingLevel(ctx);
+    runtime.requestRender();
   });
 }
