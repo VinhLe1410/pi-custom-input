@@ -1,25 +1,54 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import {
-  isKeyRelease,
-  matchesKey,
-  truncateToWidth,
-  visibleWidth,
-  type KeyId,
-} from "@earendil-works/pi-tui";
-import { matchesConfiguredShortcut } from "./shortcuts";
+  beginSynchronizedOutput,
+  clearLine,
+  disableAlternateScrollMode,
+  disableExtendedKeyboardMode,
+  disableMouseReporting,
+  enableAlternateScrollMode,
+  enterAlternateScreen,
+  enableExtendedKeyboardMode,
+  enableMouseReporting,
+  endSynchronizedOutput,
+  exitAlternateScreen,
+  hideCursor,
+  moveCursor,
+  resetExtendedKeyboardModes,
+  resetScrollRegion,
+  setScrollRegion,
+  showCursor,
+  type ExtendedKeyboardMode,
+} from "./ansi";
+import {
+  DEFAULT_KEYBOARD_SCROLL_SHORTCUTS,
+  isLeftDrag,
+  isLeftPress,
+  isMouseRelease,
+  isRightPress,
+  mouseScrollDelta,
+  parseKeyboardScrollDelta,
+  parseSgrMousePackets,
+  type KeyboardScrollShortcuts,
+  type SgrMousePacket,
+} from "./terminal-input";
 import type { FixedEditorClusterRender } from "./cluster.ts";
+
+export {
+  beginSynchronizedOutput,
+  emergencyTerminalModeReset,
+  endSynchronizedOutput,
+  moveCursor,
+  resetScrollRegion,
+  setScrollRegion,
+} from "./ansi";
 
 export interface TerminalLike {
   columns: number;
   rows: number;
   kittyProtocolActive?: boolean;
   write(data: string): void;
-}
-
-interface KeyboardScrollShortcuts {
-  up: KeyId;
-  down: KeyId;
 }
 
 interface TerminalSplitCompositorOptions {
@@ -55,13 +84,6 @@ type CompositeLineAt = (
   totalWidth: number,
 ) => string;
 
-interface SgrMousePacket {
-  code: number;
-  col: number;
-  row: number;
-  final: "M" | "m";
-}
-
 interface SelectionPoint {
   line: number;
   col: number;
@@ -78,159 +100,10 @@ interface DisposeOptions {
   resetExtendedKeyboardModes?: boolean;
 }
 
-type ExtendedKeyboardMode = "kitty" | "modifyOtherKeys";
-
 const CONTEXT_MENU_MOUSE_REPORTING_PAUSE_MS = 1200;
 const CONTEXT_MENU_SELECTION_RESTORE_WINDOW_MS = 5000;
 const CONTEXT_MENU_CLIPBOARD_RESTORE_INTERVAL_MS = 100;
 const DOUBLE_CLICK_MS = 500;
-const DEFAULT_KEYBOARD_SCROLL_SHORTCUTS: KeyboardScrollShortcuts = {
-  up: "super+up",
-  down: "super+down",
-};
-
-export function beginSynchronizedOutput(): string {
-  return "\x1b[?2026h";
-}
-
-export function endSynchronizedOutput(): string {
-  return "\x1b[?2026l";
-}
-
-export function setScrollRegion(top: number, bottom: number): string {
-  return `\x1b[${top};${bottom}r`;
-}
-
-export function resetScrollRegion(): string {
-  return "\x1b[r";
-}
-
-export function moveCursor(row: number, col: number): string {
-  return `\x1b[${row};${col}H`;
-}
-
-function clearLine(): string {
-  return "\x1b[2K";
-}
-
-function hideCursor(): string {
-  return "\x1b[?25l";
-}
-
-function showCursor(): string {
-  return "\x1b[?25h";
-}
-
-function enterAlternateScreen(): string {
-  return "\x1b[?1049h";
-}
-
-function exitAlternateScreen(): string {
-  return "\x1b[?1049l";
-}
-
-function enableAlternateScrollMode(): string {
-  return "\x1b[?1007h";
-}
-
-function disableAlternateScrollMode(): string {
-  return "\x1b[?1007l";
-}
-
-function enableMouseReporting(): string {
-  return "\x1b[?1002h\x1b[?1006h";
-}
-
-function disableMouseReporting(): string {
-  return "\x1b[?1006l\x1b[?1002l\x1b[?1000l";
-}
-
-function enableExtendedKeyboardMode(mode: ExtendedKeyboardMode): string {
-  return mode === "kitty" ? "\x1b[>7u" : "\x1b[>4;2m";
-}
-
-function disableExtendedKeyboardMode(mode: ExtendedKeyboardMode): string {
-  return mode === "kitty" ? "\x1b[<u" : "\x1b[>4;0m";
-}
-
-function resetExtendedKeyboardModes(): string {
-  return "\x1b[<999u\x1b[>4;0m";
-}
-
-export function emergencyTerminalModeReset(): string {
-  return beginSynchronizedOutput()
-    + resetScrollRegion()
-    + disableMouseReporting()
-    + enableAlternateScrollMode()
-    + exitAlternateScreen()
-    + resetExtendedKeyboardModes()
-    + endSynchronizedOutput();
-}
-
-function parseKeyboardScrollDelta(data: string, shortcuts: KeyboardScrollShortcuts = DEFAULT_KEYBOARD_SCROLL_SHORTCUTS): number {
-  if (isKeyRelease(data)) return 0;
-
-  if (
-    matchesConfiguredShortcut(data, shortcuts.up)
-    || matchesKey(data, "pageUp")
-    || matchesKey(data, "ctrl+shift+up")
-    || /^\x1b\[(?:5;9(?::[12])?~|1;6(?::[12])?A|57421;9(?::[12])?u|57419;6(?::[12])?u)$/.test(data)
-  ) return 10;
-  if (
-    matchesConfiguredShortcut(data, shortcuts.down)
-    || matchesKey(data, "pageDown")
-    || matchesKey(data, "ctrl+shift+down")
-    || /^\x1b\[(?:6;9(?::[12])?~|1;6(?::[12])?B|57422;9(?::[12])?u|57420;6(?::[12])?u)$/.test(data)
-  ) return -10;
-  return 0;
-}
-
-function parseSgrMousePackets(data: string): SgrMousePacket[] | null {
-  const pattern = /\x1b\[<(\d+);(\d+);(\d+)([Mm])/g;
-  const packets: SgrMousePacket[] = [];
-  let offset = 0;
-
-  for (const match of data.matchAll(pattern)) {
-    if (match.index !== offset) return null;
-    offset = match.index + match[0].length;
-    packets.push({
-      code: Number(match[1]),
-      col: Number(match[2]),
-      row: Number(match[3]),
-      final: match[4] as "M" | "m",
-    });
-  }
-
-  return packets.length > 0 && offset === data.length ? packets : null;
-}
-
-function mouseBaseButton(code: number): number {
-  return code & ~(4 | 8 | 16 | 32);
-}
-
-function mouseScrollDelta(packet: SgrMousePacket): number {
-  if (packet.final !== "M") return 0;
-  const baseButton = mouseBaseButton(packet.code);
-  if (baseButton === 64) return 3;
-  if (baseButton === 65) return -3;
-  return 0;
-}
-
-function isLeftPress(packet: SgrMousePacket): boolean {
-  return packet.final === "M" && mouseBaseButton(packet.code) === 0 && (packet.code & 32) === 0;
-}
-
-function isLeftDrag(packet: SgrMousePacket): boolean {
-  return packet.final === "M" && mouseBaseButton(packet.code) === 0 && (packet.code & 32) !== 0;
-}
-
-function isRightPress(packet: SgrMousePacket): boolean {
-  return packet.final === "M" && mouseBaseButton(packet.code) === 2 && (packet.code & 32) === 0;
-}
-
-function isMouseRelease(packet: SgrMousePacket): boolean {
-  return packet.final === "m";
-}
 
 function stripOscSequences(line: string): string {
   return line.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "");
