@@ -1,7 +1,7 @@
 import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { clampRenderedLines } from "../shared/rendering";
-import { thinkingColor } from "../shared/theme";
+import { clampRenderedLines } from "../../shared/rendering";
+import { thinkingColor } from "../../shared/theme";
 import {
   blendRgb,
   heavyBorderChar,
@@ -9,13 +9,13 @@ import {
   rgbBg,
   rgbFg,
   type Rgb,
-} from "./border-chase";
-import { EDITOR_CHROME, EDITOR_LAYOUT } from "./constants";
+} from "./border-color";
+import { EDITOR_CHROME, EDITOR_LAYOUT } from "../constants";
 import {
   chaseDistance,
   createBorderChase,
   type BorderChase,
-} from "./chase";
+} from "./border-animation";
 
 export interface PolishedInputFrame {
   width: number;

@@ -1,5 +1,5 @@
-import type { SharedEditorMeta } from "../shared/editor-meta";
-export type { EditorContextMeter } from "../shared/editor-meta";
+import type { SharedEditorMeta } from "../../shared/editor-meta";
+export type { EditorContextMeter } from "../../shared/editor-meta";
 
 export interface DefaultEditorBranchMeta {
   name: string;

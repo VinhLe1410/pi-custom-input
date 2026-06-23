@@ -1,4 +1,4 @@
-import type { GitState } from "./git";
+import type { GitState } from "./git-status";
 
 interface ProjectRefreshOptions {
   git: GitState;

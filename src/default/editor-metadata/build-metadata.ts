@@ -1,6 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { ProjectBranchStatus } from "../input-styles";
-import { buildSharedEditorMeta, getThinkingLevel } from "../shared/editor-meta";
+import type { ProjectBranchStatus } from "../../input-styles";
+import { buildSharedEditorMeta, getThinkingLevel } from "../../shared/editor-meta";
 import type { DefaultEditorBranchMeta, DefaultEditorMeta } from "./types";
 
 function buildBranchMeta(git: ProjectBranchStatus): DefaultEditorBranchMeta | undefined {

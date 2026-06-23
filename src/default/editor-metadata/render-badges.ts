@@ -1,7 +1,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { contextColor, thinkingColor } from "../shared/theme";
-import { EDITOR_CHROME, EDITOR_LAYOUT, ICONS } from "./constants";
+import { contextColor, thinkingColor } from "../../shared/theme";
+import { EDITOR_CHROME, EDITOR_LAYOUT, ICONS } from "../constants";
 import type { DefaultEditorBranchMeta, DefaultEditorMeta, EditorContextMeter } from "./types";
 
 interface MetadataVariant {

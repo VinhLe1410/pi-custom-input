@@ -7,13 +7,13 @@ import type { KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 import type { InputStyleAdapter, InputStyleRuntime } from "../input-styles";
 import { getThinkingLevel } from "../shared/editor-meta";
-import { renderEditorMetadata } from "./badges";
+import { pickWorkingMessage } from "./agent-working-message/messages";
 import { BORDER_CHASE_FRAME_COUNT } from "./constants";
-import { PolishedInputEditor } from "./editor";
-import { PolishedInputFrameRenderer } from "./frame";
-import { buildDefaultEditorMeta, buildDefaultEditorPreviewMeta } from "./meta";
-import { renderStatusFooter } from "./footer";
-import { pickWorkingMessage } from "./working-messages";
+import { buildDefaultEditorMeta, buildDefaultEditorPreviewMeta } from "./editor-metadata/build-metadata";
+import { renderEditorMetadata } from "./editor-metadata/render-badges";
+import { PolishedInputEditor } from "./framed-input/editor";
+import { PolishedInputFrameRenderer } from "./framed-input/frame-renderer";
+import { renderStatusFooter } from "./status-footer/render-footer";
 
 export const defaultStyle: InputStyleAdapter = {
   id: "default",

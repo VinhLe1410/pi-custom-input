@@ -1,4 +1,4 @@
-import { BORDER_CHASE } from "./constants";
+import { BORDER_CHASE } from "../constants";
 
 export interface BorderChase {
   head: number;

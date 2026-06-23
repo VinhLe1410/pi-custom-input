@@ -1,18 +1,18 @@
 import { CustomEditor } from "@earendil-works/pi-coding-agent";
 import type { KeybindingsManager, Theme } from "@earendil-works/pi-coding-agent";
 import { type EditorTheme, type TUI } from "@earendil-works/pi-tui";
-import { renderFramedEditor } from "../shared/framed-editor";
-import { renderEditorMetadata } from "./badges";
-import { BORDER_CHASE_FRAME_COUNT } from "./constants";
-import { PolishedInputFrameRenderer } from "./frame";
-import type { DefaultEditorChrome } from "./types";
+import { renderFramedEditor } from "../../shared/framed-editor";
+import { BORDER_CHASE_FRAME_COUNT } from "../constants";
+import { renderEditorMetadata } from "../editor-metadata/render-badges";
+import type { DefaultEditorChrome } from "../editor-metadata/types";
+import { PolishedInputFrameRenderer } from "./frame-renderer";
 
 export type {
   DefaultEditorBranchMeta,
   DefaultEditorChrome,
   DefaultEditorMeta,
   EditorContextMeter,
-} from "./types";
+} from "../editor-metadata/types";
 
 export class PolishedInputEditor extends CustomEditor {
   private getChrome: () => DefaultEditorChrome;

@@ -4,7 +4,7 @@ import type {
   Theme,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { FOOTER_LAYOUT, ICONS } from "./constants";
+import { FOOTER_LAYOUT, ICONS } from "../constants";
 import { collectExtensionStatusSegments } from "./extension-status";
 
 function formatCwdLabel(cwd: string): string {

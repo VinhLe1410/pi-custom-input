@@ -1,4 +1,4 @@
-import { EDITOR_CHROME } from "./constants";
+import { EDITOR_CHROME } from "../constants";
 
 interface Rgb {
   r: number;
