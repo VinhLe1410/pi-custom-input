@@ -7,9 +7,11 @@ import {
 import { InputStyleRuntimeController } from "./ui/input-style-runtime";
 import { findInputStyleAdapter } from "./ui/input-styles";
 import { showInputStyleMenu } from "./ui/input-style-menu";
+import installStickyInput from "./ui/sticky/controller";
 import { pickWorkingMessage } from "./whimsical/messages";
 
 export default function (pi: ExtensionAPI) {
+  installStickyInput(pi);
   const runtime = new InputStyleRuntimeController();
   let activeStyle: InputStyle = loadInputStyleConfig().style;
 
