@@ -46,7 +46,7 @@ export function registerInputStyleLifecycle(
   }
 
   pi.registerCommand("input-style", {
-    description: "Select pi-input-3000 input style",
+    description: "Select a Pi Custom Input style",
     handler: async (_args, ctx) => {
       if (ctx.mode !== "tui") {
         ctx.ui.notify("/input-style requires TUI mode", "error");

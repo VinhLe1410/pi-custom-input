@@ -72,7 +72,7 @@ export async function showInputStyleMenu(
         const adapter = findInputStyleAdapter(selectedStyle);
         const preview = adapter?.renderPreview?.(ctx, width, theme) ?? [];
         const lines = [
-          theme.fg("accent", theme.bold("Pi Input 3000 Settings")),
+          theme.fg("accent", theme.bold("Pi Custom Input Settings")),
           "",
           theme.fg("muted", "Input style"),
           ...selectList.render(width),

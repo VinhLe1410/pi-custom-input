@@ -1,5 +1,5 @@
 {
-  "name": "pi-input-3000",
+  "name": "pi-custom-input",
   "private": true,
   "description": "Pi input UI with animated prompt chrome and status footer",
   "scripts": {

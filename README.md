@@ -1,4 +1,4 @@
-# Pi Input 3000
+# Pi Custom Input
 
 **A riced up version for the user input section to make you feel like you're in Los Almos or Las Vegas or anything I don't even know**
 
@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/26a42a07-b4f0-4419-ac40-c9c7be68c181
 2. **Input 3000:** Polished chrome with model/thinking/context/git badges, animated border chase, whimsical working messages, and extension/package status display.
 3. **Amp-inspired input:** Minimal, zen input UI with cost, thinking, context %, and cwd labels.
 4. **Sticky input:** Terminal split keeps any input style pinned while chat history scrolls with mouse wheel and Page Up/Down.
-5. **Settings:** `/input-style` selects an input style and toggles sticky input. Styled choices include previews. Settings are saved to `~/.pi/agent/pi-input-3000.json`.
+5. **Settings:** `/input-style` selects an input style and toggles sticky input. Styled choices include previews. Settings are saved to `~/.pi/agent/pi-custom-input.json`.
 
 ## Code layout
 
