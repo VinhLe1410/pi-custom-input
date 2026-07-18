@@ -74,6 +74,14 @@ const CONTEXT_MENU_MOUSE_REPORTING_PAUSE_MS = 1200;
 const CONTEXT_MENU_SELECTION_RESTORE_WINDOW_MS = 5000;
 const CONTEXT_MENU_CLIPBOARD_RESTORE_INTERVAL_MS = 100;
 const DOUBLE_CLICK_MS = 500;
+const SYNCHRONIZED_OUTPUT_BEGIN = beginSynchronizedOutput();
+const SYNCHRONIZED_OUTPUT_END = endSynchronizedOutput();
+
+function stripNestedSynchronizedOutput(data: string): string {
+  return data
+    .replaceAll(SYNCHRONIZED_OUTPUT_BEGIN, "")
+    .replaceAll(SYNCHRONIZED_OUTPUT_END, "");
+}
 
 function sanitizeLine(line: string, width: number): string {
   return visibleWidth(line) > width ? truncateToWidth(line, width, "", true) : line;
@@ -625,10 +633,11 @@ export class TerminalSplitCompositor {
 
       const scrollBottom = Math.max(1, rawRows - reservedRows);
       const screenRow = this.adapter.getCursorScreenRow(scrollBottom);
+      const rootPaint = stripNestedSynchronizedOutput(data);
       const buffer = beginSynchronizedOutput()
         + setScrollRegion(1, scrollBottom)
         + moveCursor(screenRow, 1)
-        + data
+        + rootPaint
         + buildFixedClusterPaint(this.decorateCluster(cluster), rawRows, width, this.adapter.getShowHardwareCursor())
         + endSynchronizedOutput();
 
